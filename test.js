@@ -25,7 +25,7 @@ var Player = function(name){
 var Game = function(){
     this.players=[];
     this.dateCreation=new Date().getDate();
-
+    this.numberOfRound=1;
 
 }
 
@@ -102,7 +102,7 @@ function DecisionalTreeDefault(message){
   }
 
   if(command === 'scoreboard'){
-          var fields=[];
+    var fields=[];
     for(i=0;i<currentGame.numberOfRound && currentGame!=null;i++){
         var embedValue='';
         for(j=0;j<currentGame.players.length && currentGame!=null;j++){
@@ -111,7 +111,7 @@ function DecisionalTreeDefault(message){
          fields.push({
             name: "Round "+i,
             value: embedValue
-            });
+            }); 
     }
 
     message.channel.send({embed: {
@@ -132,12 +132,14 @@ function DecisionalTreeDefault(message){
   if(command === 'newRound'){
     if(currentRound!=null){
          message.channel.send("Hey, "+currentRound.owner+" is creating a Round right now, you have to wait. You're free to blame him tho ;).");
+         
          return;
     }
     currentRound=new Round(message.author);
     if(messageSplit.length!=6){
       message.channel.send("To add a new round, please use this command with the name of the 5 players that played this round");
       message.channel.send("The users in the game are: "+currentGame.listPlayerString());
+      currentRound=null;
       return;
     }
 
@@ -145,6 +147,7 @@ function DecisionalTreeDefault(message){
       if(!currentGame.doesPlayerExist(messageSplit[i])){
         message.channel.send("The player **"+messageSplit[i]+"** does not exist :/");
         message.channel.send("The users in the game are: **"+currentGame.listPlayerString()+"**");
+        currentRound=null;
         return;
       }
     }
@@ -165,17 +168,19 @@ function DecisionalTreeDefault(message){
         (emoji) => {
             if(emoji.users.last().id != currentRound.owner.id && emoji.users.last().id != "324903595411505152"){
                 emoji.remove(emoji.users.last()).then((messageReaction) => {
-                    console.log(messageReaction.count)
+
                 })
                 .catch(function() {
                     console.log("Erreur lors de la supression de la réaction non autorisée");
                 });
-                console.log("hey");
+                return ;
             }else {
                 return emoji;
             }
         }).on("collect",(emoji) => {
-            console.log(emoji.message.author.id);
+            if(emoji.users.last().id != "324903595411505152"){
+                console.log(emoji._emoji.name=="1⃣");
+            }
         });
     }).catch(function() {
         console.log("Erreur lors de l'envoie du message");
@@ -186,7 +191,7 @@ function DecisionalTreeDefault(message){
   if(command === 'test'){
     message.channel.send("!newGame");
     setTimeout(function(){message.channel.send("!addPlayer 1 2 3 4 5");},500);
-    //setTimeout(function(){message.channel.send("!newRound lui moi eux elles ils");},1000);
+    //setTimeout(function(){message.channel.send("!newRound 1 2 3 4 5");},1000);
   }
 }
 
