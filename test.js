@@ -13,6 +13,13 @@ const client = new Discord.Client();
 // The token of your bot - https://discordapp.com/developers/applications/me
 const token = 'MzI0OTAzNTk1NDExNTA1MTUy.DCQgLQ.kJ2qmh7_PZrKIh8DXglls4VIcw8';
 
+const emojis= {
+    one:{
+        unicode:"",
+        name:"1"
+    }
+}
+
 var currentGame;
 var currentRound;
 var botState="default";
