@@ -74,6 +74,7 @@ var Round = function(owner,players){
     this.indexOfPlayerWhoTook;
     this.indexOfPlayerCalled;
     this.isWon;
+    this.mise;
     this.ecartScore;
     this.state=0;
 }
@@ -89,7 +90,22 @@ Game.prototype.addPlayer = function (player){
 Game.prototype.addRound = function (round){
     if(round instanceof Round){
         this.rounds.push(round);
-        
+        var baseValue=(round.isWon)?round.mise+round.ecartScore:-round.mise-round.ecartScore;
+        this.findPlayersByRound(round).forEach(function(player,index){
+            if(index==round.indexOfPlayerWhoTook || index==round.indexOfPlayerCalled){
+                if(round.indexOfPlayerCalled == round.indexOfPlayerWhoTook){
+                    player.score.push(player.score[player.score.length-1]+baseValue*4);
+                } else {
+                    if(index == round.indexOfPlayerWhoTook){
+                        player.score.push(player.score[player.score.length-1]+baseValue*2);
+                    } else {
+                        player.score.push(player.score[player.score.length-1]+baseValue);
+                    }
+                }
+            } else {    
+                player.score.push(player.score[player.score.length-1]-baseValue);
+            }
+        },this);
     }
 };
 
@@ -117,7 +133,7 @@ Game.prototype.findPlayersByRound = function (round){
     var playersInRound=[];
     round.players.forEach(function(player){
         playersInRound.push(this.findPlayerByName(player));
-    });
+    },this);
     return playersInRound;
 }
 
@@ -170,10 +186,10 @@ function DecisionalTreeDefault(message){
 
   if(command === 'scoreboard'){
     var fields=[];
-    for(i=0;i<currentGame.numberOfRound && currentGame!=null;i++){
+    for(i=0;i<currentGame.rounds.length+1 && currentGame!=null;i++){
         var embedValue='';
         for(j=0;j<currentGame.players.length && currentGame!=null;j++){
-            embedValue+=currentGame.players[j].name+': '+currentGame.players[j].score+'  ';
+            embedValue+=currentGame.players[j].name+': '+currentGame.players[j].score[i]+'  ';
         }
          fields.push({
             name: "Round "+i,
@@ -247,11 +263,12 @@ function DecisionalTreeDefault(message){
                 if(currentRound.state != 2 && emojisPlayerChoice[emoji._emoji.name]!=null && emojisPlayerChoice[emoji._emoji.name].name=="Cancel"){
                     currentRound=null;
                     emoji.message.clearReactions();
-                    emoji.message.edit("Round cancelled by"+emoji.users.last());
+                    emoji.message.edit(emoji.message.content+"  \nRound cancelled by"+emoji.users.last());
                     return;
                 }
                 switch(currentRound.state){
                     case 0:
+                        currentRound.indexOfPlayerWhoTook=emojisPlayerChoice[emoji._emoji.name].indexValue;
                         forEdit="**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** took  \nWho was called ? ";
                         currentGame.players.forEach(function(player,index){
                             forEdit+="**"+(index+1)+"**: "+player.name+"  "
@@ -261,8 +278,42 @@ function DecisionalTreeDefault(message){
                         break;
 
                     case 1:
-                        currentRound.indexOfPlayerWhoTook=emojisPlayerChoice[emoji._emoji.name].indexValue;
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** was called  \nDid they won? ";
+                        currentRound.indexOfPlayerCalled=emojisPlayerChoice[emoji._emoji.name].indexValue;
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
+                        forEdit+="**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** was called   \n";
+                        forEdit+="What did they took? **1**: Petite **2**: Garde **3**: Garde-sans **4**: Garde-contre **5**: Chlem ";
+                        emoji.message.edit(forEdit);
+                        currentRound.state++;
+                        break;
+
+                    case 2:
+                        switch(emojisPlayerChoice[emoji._emoji.name].indexValue){
+                            case 0:
+                                currentRound.mise=30;
+                                break;
+
+                            case 1:
+                                currentRound.mise=50;
+                                break;
+
+                            case 2:
+                                currentRound.mise=100;
+                                break;
+
+                            case 3:
+                                currentRound.mise=150;
+                                break;
+
+                            case 4:
+                                currentRound.mise=300;
+                                break;
+
+                            
+                        }
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
+                        forEdit+="The stake is **"+currentRound.mise+"**  \n";
+                        forEdit+="Did they won? ";
                         emoji.message.edit(forEdit);
                         emoji.message.clearReactions().then((message) => {
                             for(var i=0;i<Object.keys(emojisYesNo).length;i++){
@@ -272,9 +323,8 @@ function DecisionalTreeDefault(message){
                         currentRound.state++;
                         break;
 
-                    case 2:
+                    case 3:
                         currentRound.isWon=(emojisYesNo[emoji._emoji.name].name=="Yes")?true:false;
-                        currentRound.indexOfPlayerCalled=emojisPlayerChoice[emoji._emoji.name].indexValue;
                         emoji.message.clearReactions().then((message) => {
                             for(var i=0;i<Object.keys(emojisPlayerChoice).length;i++){
                                 setTimeout(reactTo.bind(null, message,Object.keys(emojisPlayerChoice)[i]),i*500);
@@ -288,7 +338,7 @@ function DecisionalTreeDefault(message){
                         currentRound.state++;
                         break;
 
-                    case 3:
+                    case 4:
                         currentRound.ecartScore=(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10;
                         emoji.message.clearReactions().then((message) => {
                             for(var i=0;i<Object.keys(emojisYesNo).length;i++){
@@ -297,19 +347,19 @@ function DecisionalTreeDefault(message){
                          });
                         forEdit=emoji.message.content.split("  \n")[0]+"  \n";
                         forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[2]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[3]+" by **"+(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10+"** points  \n";
+                        forEdit+=emoji.message.content.split("  \n")[2]+" by **"+(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10+"** points  \n";
                         forEdit+="Does everything seems right to you ?";
                         emoji.message.edit(forEdit);
                         currentRound.state++;
                         break;
                     
-                    case 4:
+                    case 5:
                         forEdit=emoji.message.content.split("  \n")[0]+"  \n";
                         forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
                         forEdit+=emoji.message.content.split("  \n")[2]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[3]+"  \n";
-                        forEdit+="Round validated";
+                        forEdit+="Round validated and added by "+currentRound.owner;
+                        emoji.message.edit(forEdit);
+                        emoji.message.clearReactions()
                         currentRound.state++;
                         break;
                 }
@@ -320,8 +370,9 @@ function DecisionalTreeDefault(message){
                 .catch(function() {
                     console.log("Erreur lors de la supression de la réaction non autorisée");
                 });
-                if(currentRound.state==5){
+                if(currentRound.state==6){
                     currentGame.addRound(currentRound);
+                    currentRound=null;
                 }
             }
         });
@@ -334,8 +385,8 @@ function DecisionalTreeDefault(message){
 
   if(command === 'test'){
     message.channel.send("!newGame");
-    setTimeout(function(){message.channel.send("!addPlayer 1 2 3 4 5");},500);
-    //setTimeout(function(){message.channel.send("!newRound 1 2 3 4 5");},1000);
+    setTimeout(function(){message.channel.send("!addPlayer victor mathieu smaug thomas lau²");},500);
+    setTimeout(function(){message.channel.send("newRound victor mathieu smaug thomas lau²");},1000);
   }
 }
 
