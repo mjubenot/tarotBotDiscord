@@ -13,11 +13,40 @@ const client = new Discord.Client();
 // The token of your bot - https://discordapp.com/developers/applications/me
 const token = 'MzI0OTAzNTk1NDExNTA1MTUy.DCQgLQ.kJ2qmh7_PZrKIh8DXglls4VIcw8';
 
-const emojis= {
-    one:{
-        unicode:"",
-        name:"1"
-    }
+const emojisPlayerChoice= {
+    "1⃣":{
+        name:"1",
+        indexValue:0
+    },
+    "2⃣":{
+        name:"2",
+        indexValue:1
+    },
+    "3⃣":{
+        name:"3",
+        indexValue:2
+    },
+    "4⃣":{
+        name:"4",
+        indexValue:3
+    },
+    "5⃣":{
+        name:"5",
+        indexValue:4
+    },
+    "❌":{
+        name:"Cancel",
+        indexValue:-1
+    },
+}
+
+const emojisYesNo= {
+    "✅":{
+        name:"Yes"
+    },
+    "❌":{
+        name:"No"
+    },
 }
 
 var currentGame;
@@ -31,17 +60,22 @@ var Player = function(name){
 
 var Game = function(){
     this.players=[];
+    this.rounds=[];
     this.dateCreation=new Date().getDate();
     this.numberOfRound=1;
 
 }
 
-var Round = function(owner){
+var Round = function(owner,players){
+    var playersSliced=players.slice(0);
+    playersSliced.shift();
     this.owner=owner;
+    this.players=playersSliced;
     this.indexOfPlayerWhoTook;
     this.indexOfPlayerCalled;
     this.isWon;
     this.ecartScore;
+    this.state=0;
 }
 
 Game.prototype.addPlayer = function (player){
@@ -49,6 +83,13 @@ Game.prototype.addPlayer = function (player){
         this.players.push(player);
     } else {
         this.players.push(new Player(player));
+    }
+};
+
+Game.prototype.addRound = function (round){
+    if(round instanceof Round){
+        this.rounds.push(round);
+        
     }
 };
 
@@ -60,6 +101,24 @@ Game.prototype.doesPlayerExist = function (playerToTest){
         }
     });
     return exist;
+}
+
+Game.prototype.findPlayerByName = function (playerName){
+    var playerFound=null;
+    this.players.forEach(function(player){
+        if(player.name===playerName){
+            playerFound=player;
+        }
+    });
+    return playerFound;
+}
+
+Game.prototype.findPlayersByRound = function (round){
+    var playersInRound=[];
+    round.players.forEach(function(player){
+        playersInRound.push(this.findPlayerByName(player));
+    });
+    return playersInRound;
 }
 
 Game.prototype.listPlayerString = function (){
@@ -108,6 +167,7 @@ function DecisionalTreeDefault(message){
     message.channel.send("Player(s) added");
   }
 
+
   if(command === 'scoreboard'){
     var fields=[];
     for(i=0;i<currentGame.numberOfRound && currentGame!=null;i++){
@@ -142,7 +202,7 @@ function DecisionalTreeDefault(message){
          
          return;
     }
-    currentRound=new Round(message.author);
+    currentRound=new Round(message.author,messageSplit);
     if(messageSplit.length!=6){
       message.channel.send("To add a new round, please use this command with the name of the 5 players that played this round");
       message.channel.send("The users in the game are: "+currentGame.listPlayerString());
@@ -160,17 +220,16 @@ function DecisionalTreeDefault(message){
     }
 
     var toSend="Who took this round? ";
-        currentGame.players.forEach(function(player,index){
+    currentGame.players.forEach(function(player,index){
         toSend+="**"+(index+1)+"**: "+player.name+"  "
     });
     message.channel.send(toSend)
     .then((message) => {
-        setTimeout(function(){message.react("1⃣");},500);
-        setTimeout(function(){message.react("2⃣");},1000);
-        setTimeout(function(){message.react("3⃣");},1500);
-        setTimeout(function(){message.react("4⃣");},2000);
-        setTimeout(function(){message.react("5⃣");},2500);
-        setTimeout(function(){message.react("❌");},3000);
+        for(var i=0;i<Object.keys(emojisPlayerChoice).length;i++){
+            setTimeout(reactTo.bind(null, message,Object.keys(emojisPlayerChoice)[i])
+                
+            ,i*500);
+        }
         new Discord.ReactionCollector(message,
         (emoji) => {
             if(emoji.users.last().id != currentRound.owner.id && emoji.users.last().id != "324903595411505152"){
@@ -180,17 +239,95 @@ function DecisionalTreeDefault(message){
                 .catch(function() {
                     console.log("Erreur lors de la supression de la réaction non autorisée");
                 });
-                return ;
-            }else {
+            } else {
                 return emoji;
             }
         }).on("collect",(emoji) => {
-            if(emoji.users.last().id != "324903595411505152"){
-                console.log(emoji._emoji.name=="1⃣");
+            if(emoji.users.last().id == currentRound.owner.id){
+                if(currentRound.state != 2 && emojisPlayerChoice[emoji._emoji.name]!=null && emojisPlayerChoice[emoji._emoji.name].name=="Cancel"){
+                    currentRound=null;
+                    emoji.message.clearReactions();
+                    emoji.message.edit("Round cancelled by"+emoji.users.last());
+                    return;
+                }
+                switch(currentRound.state){
+                    case 0:
+                        forEdit="**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** took  \nWho was called ? ";
+                        currentGame.players.forEach(function(player,index){
+                            forEdit+="**"+(index+1)+"**: "+player.name+"  "
+                        });
+                        emoji.message.edit(forEdit);
+                        currentRound.state++;
+                        break;
+
+                    case 1:
+                        currentRound.indexOfPlayerWhoTook=emojisPlayerChoice[emoji._emoji.name].indexValue;
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** was called  \nDid they won? ";
+                        emoji.message.edit(forEdit);
+                        emoji.message.clearReactions().then((message) => {
+                            for(var i=0;i<Object.keys(emojisYesNo).length;i++){
+                                setTimeout(reactTo.bind(null, message,Object.keys(emojisYesNo)[i]),i*1000);
+                            }
+                         });
+                        currentRound.state++;
+                        break;
+
+                    case 2:
+                        currentRound.isWon=(emojisYesNo[emoji._emoji.name].name=="Yes")?true:false;
+                        currentRound.indexOfPlayerCalled=emojisPlayerChoice[emoji._emoji.name].indexValue;
+                        emoji.message.clearReactions().then((message) => {
+                            for(var i=0;i<Object.keys(emojisPlayerChoice).length;i++){
+                                setTimeout(reactTo.bind(null, message,Object.keys(emojisPlayerChoice)[i]),i*500);
+                            }
+                         });
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
+                        forEdit+=(emojisYesNo[emoji._emoji.name].name=="Yes")?"They **won**  \n":"They **lost**  \n";
+                        forEdit+="By how many points? (emoji * 10)";
+                        emoji.message.edit(forEdit);
+                        currentRound.state++;
+                        break;
+
+                    case 3:
+                        currentRound.ecartScore=(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10;
+                        emoji.message.clearReactions().then((message) => {
+                            for(var i=0;i<Object.keys(emojisYesNo).length;i++){
+                                setTimeout(reactTo.bind(null, message,Object.keys(emojisYesNo)[i]),i*1000);
+                            }
+                         });
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[2]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[3]+" by **"+(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10+"** points  \n";
+                        forEdit+="Does everything seems right to you ?";
+                        emoji.message.edit(forEdit);
+                        currentRound.state++;
+                        break;
+                    
+                    case 4:
+                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[2]+"  \n";
+                        forEdit+=emoji.message.content.split("  \n")[3]+"  \n";
+                        forEdit+="Round validated";
+                        currentRound.state++;
+                        break;
+                }
+
+                emoji.remove(emoji.users.last()).then((messageReaction) => {
+
+                })
+                .catch(function() {
+                    console.log("Erreur lors de la supression de la réaction non autorisée");
+                });
+                if(currentRound.state==5){
+                    currentGame.addRound(currentRound);
+                }
             }
         });
-    }).catch(function() {
-        console.log("Erreur lors de l'envoie du message");
+    }).catch(function(error) {
+        console.log(error);
+        console.log("Erreur lors de l'envoi du message");
     });
 
   }
@@ -205,6 +342,10 @@ function DecisionalTreeDefault(message){
 function capitalize(s)
 {
     return s[0].toUpperCase() + s.slice(1);
+}
+
+function reactTo(message,value){
+    message.react(value);
 }
 
 // Log our bot in
