@@ -1,166 +1,36 @@
-/*
-  A bot that welcomes new guild members when they join
-*/
-
-// Import the discord.js module
 const Discord = require('discord.js');
+const config = require('./conf/config.json');
+const Game = require('./class/game.js').Game;
+const Player = require('./class/player.js').Player;
+const Round = require('./class/round.js').Round;
+const utils = require('./utils/utils.js');
+const emojis=config.emojis;
 
-const commandPrefix = '!';
-
-// Create an instance of a Discord client
 const client = new Discord.Client();
 
-// The token of your bot - https://discordapp.com/developers/applications/me
-const token = 'MzI0OTAzNTk1NDExNTA1MTUy.DCQgLQ.kJ2qmh7_PZrKIh8DXglls4VIcw8';
-
-const emojisPlayerChoice= {
-    "1⃣":{
-        name:"1",
-        indexValue:0
-    },
-    "2⃣":{
-        name:"2",
-        indexValue:1
-    },
-    "3⃣":{
-        name:"3",
-        indexValue:2
-    },
-    "4⃣":{
-        name:"4",
-        indexValue:3
-    },
-    "5⃣":{
-        name:"5",
-        indexValue:4
-    },
-    "❌":{
-        name:"Cancel",
-        indexValue:-1
-    },
-}
-
-const emojisYesNo= {
-    "✅":{
-        name:"Yes"
-    },
-    "❌":{
-        name:"No"
-    },
-}
 
 var currentGame;
 var currentRound;
-var botState="default";
-
-var Player = function(name){
-    this.score=[0];
-    this.name=name;
-}
-
-var Game = function(){
-    this.players=[];
-    this.rounds=[];
-    this.dateCreation=new Date().getDate();
-    this.numberOfRound=1;
-
-}
-
-var Round = function(owner,players){
-    var playersSliced=players.slice(0);
-    playersSliced.shift();
-    this.owner=owner;
-    this.players=playersSliced;
-    this.indexOfPlayerWhoTook;
-    this.indexOfPlayerCalled;
-    this.isWon;
-    this.mise;
-    this.ecartScore;
-    this.state=0;
-}
-
-Game.prototype.addPlayer = function (player){
-    if(player instanceof Player){
-        this.players.push(player);
-    } else {
-        this.players.push(new Player(player));
+var states={
+    botState:"default",
+    messageState:{
+        messageReady:false
     }
 };
+var isMessageReady=true;
 
-Game.prototype.addRound = function (round){
-    if(round instanceof Round){
-        this.rounds.push(round);
-        var baseValue=(round.isWon)?round.mise+round.ecartScore:-round.mise-round.ecartScore;
-        this.findPlayersByRound(round).forEach(function(player,index){
-            if(index==round.indexOfPlayerWhoTook || index==round.indexOfPlayerCalled){
-                if(round.indexOfPlayerCalled == round.indexOfPlayerWhoTook){
-                    player.score.push(player.score[player.score.length-1]+baseValue*4);
-                } else {
-                    if(index == round.indexOfPlayerWhoTook){
-                        player.score.push(player.score[player.score.length-1]+baseValue*2);
-                    } else {
-                        player.score.push(player.score[player.score.length-1]+baseValue);
-                    }
-                }
-            } else {    
-                player.score.push(player.score[player.score.length-1]-baseValue);
-            }
-        },this);
-    }
-};
-
-Game.prototype.doesPlayerExist = function (playerToTest){
-    var exist=false;
-    this.players.forEach(function(player){
-        if(player.name===playerToTest){
-            exist=true;
-        }
-    });
-    return exist;
-}
-
-Game.prototype.findPlayerByName = function (playerName){
-    var playerFound=null;
-    this.players.forEach(function(player){
-        if(player.name===playerName){
-            playerFound=player;
-        }
-    });
-    return playerFound;
-}
-
-Game.prototype.findPlayersByRound = function (round){
-    var playersInRound=[];
-    round.players.forEach(function(player){
-        playersInRound.push(this.findPlayerByName(player));
-    },this);
-    return playersInRound;
-}
-
-Game.prototype.listPlayerString = function (){
-    var toReturn="";
-    this.players.forEach(function(player){
-        toReturn+=player.name+", ";
-    },this);
-    return toReturn;
-};
-
-// The ready event is vital, it means that your bot will only start reacting to information
-// from Discord _after_ ready is emitted
 client.on('ready', () => {
-  console.log('I am ready!');
+    console.log("I'm ready!")
+    currentGame=new Game();
 });
 
-//client.on('debug', console.log)
-
 client.on('message', message => {
-    eval("DecisionalTree"+capitalize(botState)+"(message)");
+    eval("DecisionalTree"+utils.capitalize(states.botState)+"(message)");
 });
 
 
 function DecisionalTreeDefault(message){
-  // If the message is "ping"
-  if(message.content.charAt(0) != commandPrefix ){
+  if(message.content.charAt(0) != config.commandPrefix ){
       return;
   }
   var messageSplit=message.content.slice(1).split(" ");
@@ -236,31 +106,17 @@ function DecisionalTreeDefault(message){
     }
 
     var toSend="Who took this round? ";
-    currentGame.players.forEach(function(player,index){
+    currentGame.findPlayersByRound(currentRound).forEach(function(player,index){
         toSend+="**"+(index+1)+"**: "+player.name+"  "
     });
+    
     message.channel.send(toSend)
     .then((message) => {
-        for(var i=0;i<Object.keys(emojisPlayerChoice).length;i++){
-            setTimeout(reactTo.bind(null, message,Object.keys(emojisPlayerChoice)[i])
-                
-            ,i*500);
-        }
-        new Discord.ReactionCollector(message,
-        (emoji) => {
-            if(emoji.users.last().id != currentRound.owner.id && emoji.users.last().id != "324903595411505152"){
-                emoji.remove(emoji.users.last()).then((messageReaction) => {
-
-                })
-                .catch(function() {
-                    console.log("Erreur lors de la supression de la réaction non autorisée");
-                });
-            } else {
-                return emoji;
-            }
-        }).on("collect",(emoji) => {
-            if(emoji.users.last().id == currentRound.owner.id){
-                if(currentRound.state != 2 && emojisPlayerChoice[emoji._emoji.name]!=null && emojisPlayerChoice[emoji._emoji.name].name=="Cancel"){
+        utils.reactEmojiSetTo(message,Object.keys(emojis.choosePlayer),states.messageState);
+        new Discord.ReactionCollector(message,(emoji) => {return emoji;})
+        .on("collect",(emoji) => {
+            if(emoji.users.last().id == currentRound.owner.id && states.messageState.isMessageReady){
+                if(currentRound.state != 3 && emojis.choosePlayer[emoji._emoji.name]!=null && emojis.choosePlayer[emoji._emoji.name].name=="Cancel"){
                     currentRound=null;
                     emoji.message.clearReactions();
                     emoji.message.edit(emoji.message.content+"  \nRound cancelled by"+emoji.users.last());
@@ -268,9 +124,10 @@ function DecisionalTreeDefault(message){
                 }
                 switch(currentRound.state){
                     case 0:
-                        currentRound.indexOfPlayerWhoTook=emojisPlayerChoice[emoji._emoji.name].indexValue;
-                        forEdit="**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** took  \nWho was called ? ";
-                        currentGame.players.forEach(function(player,index){
+                    
+                        currentRound.indexOfPlayerWhoTook=emojis.choosePlayer[emoji._emoji.name].indexValue;
+                        forEdit="**"+currentRound.players[emojis.choosePlayer[emoji._emoji.name].indexValue]+"** took  \nWho was called ? ";
+                        currentGame.findPlayersByRound(currentRound).forEach(function(player,index){
                             forEdit+="**"+(index+1)+"**: "+player.name+"  "
                         });
                         emoji.message.edit(forEdit);
@@ -278,85 +135,64 @@ function DecisionalTreeDefault(message){
                         break;
 
                     case 1:
-                        currentRound.indexOfPlayerCalled=emojisPlayerChoice[emoji._emoji.name].indexValue;
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
-                        forEdit+="**"+currentRound.players[emojisPlayerChoice[emoji._emoji.name].indexValue]+"** was called   \n";
-                        forEdit+="What did they took? **1**: Petite **2**: Garde **3**: Garde-sans **4**: Garde-contre **5**: Chlem ";
+                        currentRound.indexOfPlayerCalled=emojis.choosePlayer[emoji._emoji.name].indexValue;
+
+                        forEdit=utils.getLines(emoji.message.content,1,2);
+                        forEdit+="**"+currentRound.players[emojis.choosePlayer[emoji._emoji.name].indexValue]+"** was called   \n";
+                        forEdit+="What did they took? ";
+
+                        for(var i=0;i<Object.keys(emojis.chooseStake).length-1;i++){
+                            forEdit+=""+Object.keys(emojis.chooseStake)[i]+": "+emojis.chooseStake[Object.keys(emojis.chooseStake)[i]].name+"  "
+                        }
+                        emoji.message.clearReactions().then((message) => {
+                            utils.reactEmojiSetTo(message,Object.keys(emojis.chooseStake),states.messageState);
+                         });
                         emoji.message.edit(forEdit);
                         currentRound.state++;
                         break;
 
                     case 2:
-                        switch(emojisPlayerChoice[emoji._emoji.name].indexValue){
-                            case 0:
-                                currentRound.mise=30;
-                                break;
-
-                            case 1:
-                                currentRound.mise=50;
-                                break;
-
-                            case 2:
-                                currentRound.mise=100;
-                                break;
-
-                            case 3:
-                                currentRound.mise=150;
-                                break;
-
-                            case 4:
-                                currentRound.mise=300;
-                                break;
-
-                            
-                        }
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
-                        forEdit+="The stake is **"+currentRound.mise+"**  \n";
+                        currentRound.mise=emojis.chooseStake[emoji._emoji.name].stake;
+                        forEdit=utils.getLines(emoji.message.content,1,3);
+                        forEdit+="A **"+emojis.chooseStake[emoji._emoji.name].name+"** was taken  \n";
                         forEdit+="Did they won? ";
                         emoji.message.edit(forEdit);
+
+
                         emoji.message.clearReactions().then((message) => {
-                            for(var i=0;i<Object.keys(emojisYesNo).length;i++){
-                                setTimeout(reactTo.bind(null, message,Object.keys(emojisYesNo)[i]),i*1000);
-                            }
+                            utils.reactEmojiSetTo(message,Object.keys(emojis.yesOrNo),states.messageState);
                          });
                         currentRound.state++;
                         break;
 
                     case 3:
-                        currentRound.isWon=(emojisYesNo[emoji._emoji.name].name=="Yes")?true:false;
+                        currentRound.isWon=(emojis.yesOrNo[emoji._emoji.name].name=="Yes")?true:false;
                         emoji.message.clearReactions().then((message) => {
-                            for(var i=0;i<Object.keys(emojisPlayerChoice).length;i++){
-                                setTimeout(reactTo.bind(null, message,Object.keys(emojisPlayerChoice)[i]),i*500);
-                            }
+                            utils.reactEmojiSetTo(message,Object.keys(emojis.chooseEcart),states.messageState);
                          });
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
-                        forEdit+=(emojisYesNo[emoji._emoji.name].name=="Yes")?"They **won**  \n":"They **lost**  \n";
+                        forEdit=utils.getLines(emoji.message.content,1,4);
+
+                        forEdit+=(emojis.yesOrNo[emoji._emoji.name].name=="Yes")?"They **won**  \n":"They **lost**  \n";
+
                         forEdit+="By how many points? (emoji * 10)";
                         emoji.message.edit(forEdit);
                         currentRound.state++;
                         break;
 
                     case 4:
-                        currentRound.ecartScore=(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10;
+                        currentRound.ecartScore=emojis.chooseEcart[emoji._emoji.name].value;
                         emoji.message.clearReactions().then((message) => {
-                            for(var i=0;i<Object.keys(emojisYesNo).length;i++){
-                                setTimeout(reactTo.bind(null, message,Object.keys(emojisYesNo)[i]),i*1000);
-                            }
+                            utils.reactEmojiSetTo(message,Object.keys(emojis.yesOrNo),states.messageState);
                          });
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[2]+" by **"+(emojisPlayerChoice[emoji._emoji.name].indexValue+1)*10+"** points  \n";
+                        forEdit=utils.getLines(emoji.message.content,1,4);
+                        forEdit+=emoji.message.content.split("  \n")[3]+" by **"+emojis.chooseEcart[emoji._emoji.name].value+"** points  \n";
                         forEdit+="Does everything seems right to you ?";
                         emoji.message.edit(forEdit);
                         currentRound.state++;
                         break;
                     
                     case 5:
-                        forEdit=emoji.message.content.split("  \n")[0]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[1]+"  \n";
-                        forEdit+=emoji.message.content.split("  \n")[2]+"  \n";
+                        forEdit=utils.getLines(emoji.message.content,1,5);
                         forEdit+="Round validated and added by "+currentRound.owner;
                         emoji.message.edit(forEdit);
                         emoji.message.clearReactions()
@@ -364,9 +200,7 @@ function DecisionalTreeDefault(message){
                         break;
                 }
 
-                emoji.remove(emoji.users.last()).then((messageReaction) => {
-
-                })
+                emoji.remove(emoji.users.last())
                 .catch(function() {
                     console.log("Erreur lors de la supression de la réaction non autorisée");
                 });
@@ -374,6 +208,11 @@ function DecisionalTreeDefault(message){
                     currentGame.addRound(currentRound);
                     currentRound=null;
                 }
+            } else if(emoji.users.last().id!=config.botId) {
+                emoji.remove(emoji.users.last())
+                .catch(function() {
+                    console.log("Erreur lors de la supression de la réaction non autorisée");
+                });
             }
         });
     }).catch(function(error) {
@@ -390,14 +229,6 @@ function DecisionalTreeDefault(message){
   }
 }
 
-function capitalize(s)
-{
-    return s[0].toUpperCase() + s.slice(1);
-}
-
-function reactTo(message,value){
-    message.react(value);
-}
 
 // Log our bot in
-client.login(token);
+client.login(config.token);
