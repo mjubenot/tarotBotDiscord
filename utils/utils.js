@@ -27,6 +27,22 @@ function reactEmojiSetTo(message,emojiSet,messageState){
    reactToThenCallSetTimeout(message,emojiSet,0,messageState);
 }
 
+function sendEmbedMessage(message,client,title,fields,footer){
+
+        message.channel.send({embed: {
+        color: 3447003,
+        author: {
+            name: client.user.username,
+            icon_url: client.user.avatarURL
+        },
+        title: title,
+        fields: fields,
+        footer: {
+            text: footer
+        }
+    }});
+}
+
 function getLines(content,start,end){
     let toReturn="";
     for(i=start;i<end && i<=content.split("  \n").length;i++){
@@ -38,3 +54,4 @@ function getLines(content,start,end){
 exports.capitalize=capitalize;
 exports.reactEmojiSetTo=reactEmojiSetTo;
 exports.getLines=getLines;
+exports.sendEmbedMessage=sendEmbedMessage;

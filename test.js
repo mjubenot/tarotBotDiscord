@@ -41,9 +41,15 @@ function DecisionalTreeDefault(message){
     message.channel.send('Pong! Your ping (or mine, I don\'t know yet) is '+hey +'ms !');
   }
 
+  if(command == "help"){
+
+    message.channel.send("To add players, type !addPlayer *name*. You can add several players by putting a space beetween each name :). But please be careful, you won\'t be able to remove player once added without creating a new game  \n  \nTo add a round, type !newRound with the name of the 5 players that played this round  \n  \nType !scoreboard to see .... the scoreboard.  \n  \nIf you want to reset the game, type !newGame")
+    
+  }
+
   if(command === 'newGame'){
     currentGame=new Game();
-    message.channel.send('Game created. To add players, type !addPlayer *name*. You can add several players by putting a space beetween each name :). But please be careful, you won\'t be able to remove player once added without creating a new game');
+    message.channel.send('Game created.');
   }
 
   if(command === 'addPlayer'){
@@ -56,6 +62,10 @@ function DecisionalTreeDefault(message){
 
   if(command === 'scoreboard'){
     var fields=[];
+    if(currentGame.players.length==0){
+         message.channel.send("No players yet :(");
+         return;
+    }
     for(i=0;i<currentGame.rounds.length+1 && currentGame!=null;i++){
         var embedValue='';
         for(j=0;j<currentGame.players.length && currentGame!=null;j++){
@@ -67,19 +77,7 @@ function DecisionalTreeDefault(message){
             }); 
     }
 
-    message.channel.send({embed: {
-        color: 3447003,
-        author: {
-            name: client.user.username,
-            icon_url: client.user.avatarURL
-        },
-        title: "Scoreboard",
-        fields: fields,
-        timestamp: new Date(),
-        footer: {
-            text: "\"Donc t'as annoncé une garde sans avec le petit et un roi ?\" \"Bah ouais pourquoi?\" "
-        }
-    }});
+    utils.sendEmbedMessage(message,client,"Scoreboard",fields,"\"Donc t'as annoncé une garde sans avec le petit et un roi ?\" \"Bah ouais pourquoi?\"");
   }
 
   if(command === 'newRound'){
