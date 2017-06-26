@@ -1,0 +1,5 @@
+{
+  "token": "your_bot_token",
+  "commandPrefix": "!",
+  "botId": "your_bot_id"
+}
