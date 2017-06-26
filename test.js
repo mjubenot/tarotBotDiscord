@@ -4,7 +4,7 @@ const Game = require('./class/game.js').Game;
 const Player = require('./class/player.js').Player;
 const Round = require('./class/round.js').Round;
 const utils = require('./utils/utils.js');
-const emojis=config.emojis;
+const emojis=require('./conf/emojiSet.json');;
 
 const client = new Discord.Client();
 

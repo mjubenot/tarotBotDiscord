@@ -1,5 +1,4 @@
-node_modules/*
-conf/config.json
-package.json
-package-lock.json
+/package.json
+/package-lock.json
 /conf/config.json
+node_modules
